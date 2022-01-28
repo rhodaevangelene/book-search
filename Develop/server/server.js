@@ -26,6 +26,7 @@ startServer()
 
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
+console.log("ENV: " + process.env.NODE_ENV);
 
 // if we're in production, serve client/build as static assets
 if (process.env.NODE_ENV === 'production') {

@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Jumbotron, Container, Col, Form, Button, Card, CardColumns } from 'react-bootstrap';
+import { useMutation } from '@apollo/react-hooks'
 
 import Auth from '../utils/auth';
-import { saveBook, searchGoogleBooks } from '../utils/API';
+import { ADD_BOOK, searchGoogleBooks, QUERY_ME } from '../utils/API';
 import { saveBookIds, getSavedBookIds } from '../utils/localStorage';
 
 const SearchBooks = () => {
@@ -13,6 +14,22 @@ const SearchBooks = () => {
 
   // create state to hold saved bookId values
   const [savedBookIds, setSavedBookIds] = useState(getSavedBookIds());
+
+  const [addBook, { error }] = useMutation(ADD_BOOK, {
+    update(cache, { data: { addBook }}) {
+      try {
+        const { me } = cache.readQuery({ query: QUERY_ME })
+
+        cache.writeQuery({
+          query: QUERY_ME,
+          data: { me: { ...me, bookCount: addBook.bookCount, savedBooks: addBook.savedBooks }}
+        })
+
+      } catch (e) {
+        console.warn("The query has not run, therefore no need to update!")
+      }
+    }
+  })
 
   // set up useEffect hook to save `savedBookIds` list to localStorage on component unmount
   // learn more here: https://reactjs.org/docs/hooks-effect.html#effects-with-cleanup
@@ -65,11 +82,9 @@ const SearchBooks = () => {
     }
 
     try {
-      const response = await saveBook(bookToSave, token);
-
-      if (!response.ok) {
-        throw new Error('something went wrong!');
-      }
+      await addBook({
+        variables: bookToSave
+      })
 
       // if book successfully saves to user's account, save book id to state
       setSavedBookIds([...savedBookIds, bookToSave.bookId]);
@@ -123,6 +138,7 @@ const SearchBooks = () => {
                   <p className='small'>Authors: {book.authors}</p>
                   <Card.Text>{book.description}</Card.Text>
                   {Auth.loggedIn() && (
+                    <>
                     <Button
                       disabled={savedBookIds?.some((savedBookId) => savedBookId === book.bookId)}
                       className='btn-block btn-info'
@@ -131,6 +147,8 @@ const SearchBooks = () => {
                         ? 'This book has already been saved!'
                         : 'Save this Book!'}
                     </Button>
+                    {error ? <p className="text-danger">Something went wrong...</p> : ''}
+                    </>
                   )}
                 </Card.Body>
               </Card>
